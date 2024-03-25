@@ -15,6 +15,16 @@ ENDTIME = "07:01:00" # 根据学校的预约座位时间+1min即可
 ENABLE_SLIDER = False # 是否有滑块验证
 MAX_ATTEMPT = 4 # 最大尝试次数
 
+day_mapping ={
+    "Monday": 0,
+    "Tuesday": 1,
+    "Wednesday": 2,
+    "Thursday": 3,
+    "Friday": 4,
+    "Saturday": 5,
+    "Sunday": 6
+}
+
                 
 
 def login_and_reserve(users, usernames, passwords, action, success_list=None):
@@ -24,10 +34,11 @@ def login_and_reserve(users, usernames, passwords, action, success_list=None):
         success_list = [False] * len(users)
     current_dayofweek = get_current_dayofweek(action)
     for index, user in enumerate(users):
-        username, password, times, roomid, seatid, daysofweek = user.values()
+        username, password, times, roomid, seatid = user.values()
         if action:
             username, password = usernames.split(',')[index], passwords.split(',')[index]
-        if(current_dayofweek not in daysofweek):
+        time = times[day_mapping[current_dayofweek]]
+        if(not time):
             continue
         if not success_list[index]: 
             print(f"{username} -- {times} -- {seatid} try")
@@ -35,7 +46,7 @@ def login_and_reserve(users, usernames, passwords, action, success_list=None):
             s.get_login_status()
             s.login(username, password)
             s.requests.headers.update({'Host': 'office.chaoxing.com'})
-            suc = s.submit(times, roomid, seatid, action)
+            suc = s.submit(time, roomid, seatid, action)
             success_list[index] = suc
     return success_list
 
@@ -48,7 +59,7 @@ def main(users, action=False):
         usernames, passwords = get_user_credentials(action)
     success_list = None
     current_dayofweek = get_current_dayofweek(action)
-    today_reservation_num = sum(1 for d in users if current_dayofweek in d.get('daysofweek'))
+    today_reservation_num = sum(1 for d in users if d.get('times')[day_mapping[current_dayofweek]])
     while current_time < ENDTIME:
         attempt_times += 1
         try:
@@ -67,16 +78,17 @@ def debug(users, action):
         usernames, passwords = get_user_credentials(action)
     current_dayofweek = get_current_dayofweek(action)
     for index, user in enumerate(users):
-        username, password, times, roomid, seatid, daysofweek = user.values()
+        username, password, times, roomid, seatid = user.values()
         if action:
             username ,password = usernames.split(',')[index], passwords.split(',')[index]
-        if(current_dayofweek not in daysofweek):
+        time = times[day_mapping[current_dayofweek]]
+        if(not time):
             continue
         s = reserve(sleep_time=SLEEPTIME, enable_slider=ENABLE_SLIDER)
         s.get_login_status()
         s.login(username, password)
         s.requests.headers.update({'Host': 'office.chaoxing.com'})
-        suc = s.submit(times, roomid, seatid, action)
+        suc = s.submit(time, roomid, seatid, action)
         if suc:
             return
 
